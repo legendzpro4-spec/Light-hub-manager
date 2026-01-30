@@ -67,8 +67,11 @@ async def on_member_join(member):
     if count == INVITE_GOAL:
         role = guild.get_role(reward_roles[guild.id])
         if role:
-            await inviter.add_roles(role)
-            print(f"🎉 Gave role {role.name} to {inviter}")
+            try:
+                await inviter.add_roles(role)
+                print(f"🎉 Gave {role.name} to {inviter}")
+            except discord.Forbidden:
+                print("❌ Role hierarchy issue")
 
 
 # ================= /setrole COMMAND =================
@@ -82,10 +85,14 @@ async def setrole(interaction: discord.Interaction, role: discord.Role):
     )
 
 
-# ================= .r COMMAND =================
+# ================= .r COMMAND (FIXED) =================
 @bot.command()
 @commands.has_permissions(manage_roles=True)
-async def r(ctx, member: discord.Member):
+async def r(ctx, member: discord.Member = None):
+    if member is None:
+        await ctx.send("❌ You must mention a user or provide a user ID.")
+        return
+
     guild = ctx.guild
 
     if guild.id not in reward_roles:
@@ -93,12 +100,27 @@ async def r(ctx, member: discord.Member):
         return
 
     role = guild.get_role(reward_roles[guild.id])
+
     if role is None:
-        await ctx.send("❌ Saved role no longer exists.")
+        await ctx.send("❌ The reward role no longer exists.")
         return
 
-    await member.add_roles(role)
-    await ctx.send(f"✅ Gave **{role.name}** to {member.mention}")
+    if role in member.roles:
+        await ctx.send(f"⚠️ {member.mention} already has **{role.name}**.")
+        return
+
+    try:
+        await member.add_roles(role, reason=f"Manual role by {ctx.author}")
+        await ctx.send(
+            f"✅ **Role added!** {member.mention} has been given **{role.name}**"
+        )
+    except discord.Forbidden:
+        await ctx.send(
+            "❌ I can’t add that role.\n"
+            "Make sure my bot role is **above** the reward role."
+        )
+    except Exception as e:
+        await ctx.send(f"❌ Unexpected error: `{e}`")
 
 
 # ================= RUN BOT =================
