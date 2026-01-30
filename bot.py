@@ -10,7 +10,7 @@ TOKEN = os.getenv("DISCORD_TOKEN")
 # ----------------------------------------
 
 intents = discord.Intents.default()
-intents.members = True  # Required to see members
+intents.members = True  # Must be True to fetch members
 intents.guilds = True
 
 bot = commands.Bot(command_prefix=BOT_PREFIX, intents=intents)
@@ -93,20 +93,16 @@ async def r(ctx, *, member: str = None):
         await ctx.send("❌ You must mention a user or provide their ID.")
         return
 
-    # Convert mention or ID to member
+    # Resolve member
     try:
         if member.startswith("<@") and member.endswith(">"):
             member_id = int(member.replace("<@", "").replace("!", "").replace(">", ""))
-            member_obj = guild.get_member(member_id)
         else:
             member_id = int(member)
-            member_obj = guild.get_member(member_id)
+        # Fetch member directly from Discord to avoid cache issues
+        member_obj = await guild.fetch_member(member_id)
     except:
         await ctx.send("❌ Invalid member. Make sure you mention them or use their ID.")
-        return
-
-    if member_obj is None:
-        await ctx.send("❌ Member not found in this server.")
         return
 
     if guild.id not in reward_roles:
